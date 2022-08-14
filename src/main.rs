@@ -61,7 +61,7 @@ fn apply_transformation(prime_as_digits: &[u8], new_digit: u8, pattern: &[bool])
         .iter()
         .zip(pattern)
         .map(|(old_digit, replace)| if *replace { new_digit } else { *old_digit })
-        .map(|d| d as Int)
+        .map(Int::from)
         // calculate Int
         .rev()
         .reduce(|accum, item| {
@@ -78,7 +78,7 @@ fn get_longest(mut vec: Vec<Vec<Int>>) -> Vec<Int> {
         !vec.is_empty(),
         "cannot get the longest element of an empty vector"
     );
-    vec.sort_by_key(|c| c.len());
+    vec.sort_by_key(Vec::len);
     let length = vec.last().unwrap().len();
     vec.into_iter().find(|v| v.len() == length).unwrap()
 }

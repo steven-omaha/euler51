@@ -22,16 +22,16 @@ where
         assert!(min_value > 1);
         assert!(max_value > min_value);
         Self::from_array(
-            Self::get_prime_numbers_array(&min_value, &max_value),
-            &min_value,
-            &max_value,
+            &Self::get_prime_numbers_array(min_value, max_value),
+            min_value,
+            max_value,
         )
     }
 
-    fn from_array(array: Vec<bool>, min_value: &usize, max_value: &usize) -> Self {
+    fn from_array(array: &[bool], min_value: usize, max_value: usize) -> Self {
         let mut vector = Vec::new();
         let mut set = HashSet::new();
-        for number in *min_value..*max_value {
+        for number in min_value..max_value {
             if array[(number - min_value) as usize] {
                 let prime = FromPrimitive::from_usize(number).unwrap();
                 vector.push(prime);
@@ -42,20 +42,20 @@ where
         Primes { vector, set }
     }
 
-    fn get_prime_numbers_array(min_value: &usize, max_value: &usize) -> Vec<bool> {
+    fn get_prime_numbers_array(min_value: usize, max_value: usize) -> Vec<bool> {
         // Sieve of Eratosthenes
-        let length = *max_value - *min_value;
+        let length = max_value - min_value;
         let mut result = vec![true; length];
 
         for number_to_check in 2..(max_value / 2) {
             let mut last_number = number_to_check;
             loop {
                 let current_number = last_number + number_to_check;
-                if current_number < *min_value {
+                if current_number < min_value {
                     last_number = current_number;
                     continue;
                 }
-                if current_number >= *max_value {
+                if current_number >= max_value {
                     break;
                 }
                 result[current_number - min_value] = false;
