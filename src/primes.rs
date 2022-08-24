@@ -1,20 +1,22 @@
 extern crate num;
 
+use std::collections::HashSet;
+use std::fmt::Display;
+use std::hash::Hash;
+
 use num::FromPrimitive;
 use num::Num;
 use num::ToPrimitive;
-use std::collections::HashSet;
-use std::hash::Hash;
 
 #[derive(Clone)]
 pub struct Primes<T> {
-    vector: Vec<T>,
+    pub vector: Vec<T>,
     set: HashSet<T>,
 }
 
 impl<T> Primes<T>
 where
-    T: Num + ToPrimitive + FromPrimitive + Hash + Eq + PartialEq + Copy,
+    T: Num + ToPrimitive + FromPrimitive + Hash + Eq + PartialEq + Copy + Display,
 {
     pub fn get_between(min_value: T, max_value: T) -> Self {
         let max_value = max_value.to_usize().unwrap();
@@ -29,16 +31,21 @@ where
     }
 
     fn from_array(array: &[bool], min_value: usize, max_value: usize) -> Self {
-        let mut vector = Vec::new();
-        let mut set = HashSet::new();
+        let number_of_primes = array.iter().filter(|b| **b).count();
+        let mut vector = Vec::with_capacity(number_of_primes);
+        let mut set = HashSet::with_capacity(number_of_primes);
+
         for number in min_value..max_value {
-            if array[(number - min_value) as usize] {
+            let idx = number - min_value;
+            // SAFETY: see considerations in get_prime_numbers_array
+            if unsafe { *array.get_unchecked(idx) } {
                 let prime = FromPrimitive::from_usize(number).unwrap();
                 vector.push(prime);
                 set.insert(prime);
             }
         }
-        vector.reverse(); // so that self.pop removes the smallest prime
+
+        debug_assert_eq!(number_of_primes, vector.len());
         Primes { vector, set }
     }
 
@@ -47,30 +54,28 @@ where
         let length = max_value - min_value;
         let mut result = vec![true; length];
 
-        for number_to_check in 2..(max_value / 2) {
-            let mut last_number = number_to_check;
-            loop {
-                let current_number = last_number + number_to_check;
-                if current_number < min_value {
-                    last_number = current_number;
-                    continue;
-                }
-                if current_number >= max_value {
-                    break;
-                }
-                result[current_number - min_value] = false;
-                last_number = current_number;
+        let upper_limit = Self::calc_upper_limit(max_value);
+        for i in 2..upper_limit {
+            let skip = Self::find_number_to_skip_until_min_value(min_value, i);
+
+            for multiple in (i * i..max_value).step_by(i).skip(skip) {
+                let idx = multiple - min_value;
+                // SAFETY: `multiple` will always be between min_value and max_value
+                // (which define the length of the array), therfore idx is always smaller than the
+                // length of result, therefore this access is always in bounds.
+                // This is slightly faster than the bounds-checked write.
+                unsafe { *result.get_unchecked_mut(idx) = false };
             }
         }
         result
     }
 
-    pub fn pop(&mut self) -> Option<T> {
-        let result = self.vector.pop();
-        if let Some(value) = result {
-            self.set.remove(&value);
-        }
-        result
+    fn calc_upper_limit(max_value: usize) -> usize {
+        f64::sqrt(max_value as f64).ceil() as usize
+    }
+
+    fn find_number_to_skip_until_min_value(min_value: usize, i: usize) -> usize {
+        ((min_value.saturating_sub(i * i)) as f64 / i as f64).ceil() as usize
     }
 
     pub fn contains(&self, val: &T) -> bool {
@@ -80,7 +85,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::primes::Primes;
+    use super::Primes;
 
     #[test]
     fn test_example_prime() {
@@ -88,13 +93,5 @@ mod test {
         assert!(primes.set.contains(&56003));
         assert!(primes.set.contains(&56993));
         assert!(!primes.set.contains(&56002));
-    }
-
-    #[test]
-    fn test_pop() {
-        let mut primes = Primes::get_between(10, 20);
-        assert!(primes.contains(&11));
-        primes.pop();
-        assert!(!primes.contains(&11));
     }
 }
