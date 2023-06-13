@@ -39,6 +39,8 @@ fn main() {
     let mut primes_matching_pattern = Vec::with_capacity(FAMILY_SIZE);
     let mut case_buf = String::with_capacity(AMOUNT_OF_DIGITS_IN_NUMBER);
 
+    let mut digits = Vec::with_capacity(AMOUNT_OF_DIGITS_IN_NUMBER);
+
     for pattern in PositionCombinations::new(
         MIN_PATTERN_LENGTH,
         MAX_PATTERN_LENGTH,
@@ -47,7 +49,7 @@ fn main() {
         for prime in &all_primes.vector {
             primes_matching_pattern.clear();
 
-            let digits = prime.to_digits();
+            prime.to_digits(&mut digits);
 
             get_case_string(&digits, &pattern, &mut case_buf);
             if processed_cases.contains(&case_buf) {
@@ -113,48 +115,32 @@ fn replace_digits_with_new_digit_according_to_pattern(
 }
 
 trait ToDigits {
-    fn to_digits(&self) -> Vec<u8>;
+    fn to_digits(&self, buffer: &mut Vec<u8>);
 }
 
 impl ToDigits for Int {
-    fn to_digits(&self) -> Vec<u8> {
-        let oom = get_order_of_magnitude(*self);
-        let length = oom as usize;
-        let mut var = *self;
-        let mut result = vec![0; length];
-
-        result.iter_mut().enumerate().for_each(|(i, d)| {
-            let power = 10_u64.pow(oom - i as u32 - 1);
-            let digit = var / power;
-            var -= digit * power;
-            *d = digit as u8;
-        });
-
-        debug_assert_eq!(var, 0);
-        result
+    fn to_digits(&self, buf: &mut Vec<u8>) {
+        buf.clear();
+        let mut n = *self;
+        while n > 9 {
+            buf.push((n % 10) as u8);
+            n /= 10;
+        }
+        buf.push(n as u8);
+        buf.reverse();
     }
-}
-
-fn get_order_of_magnitude(x: Int) -> u32 {
-    let mut tmp = 1;
-    let mut oom = 1;
-    while tmp - 1 < x {
-        oom += 1;
-        tmp *= 10;
-    }
-    oom - 1
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        get_order_of_magnitude, replace_digits_with_new_digit_according_to_pattern, ToDigits,
-    };
+    use crate::{replace_digits_with_new_digit_according_to_pattern, ToDigits};
 
     #[test]
     fn test_num_to_digits() {
         let num = 83371;
-        assert_eq!(num.to_digits(), vec![8, 3, 3, 7, 1]);
+        let mut buf = Vec::new();
+        num.to_digits(&mut buf);
+        assert_eq!(buf, vec![8, 3, 3, 7, 1]);
     }
 
     #[test]
@@ -175,17 +161,8 @@ mod test {
     #[test]
     fn test_to_digits() {
         let num = 37871_u64;
-        assert_eq!(vec![3, 7, 8, 7, 1], num.to_digits());
-    }
-
-    #[test]
-    fn test_oom() {
-        assert_eq!(get_order_of_magnitude(3), 1);
-        assert_eq!(get_order_of_magnitude(9), 1);
-        assert_eq!(get_order_of_magnitude(10), 2);
-        assert_eq!(get_order_of_magnitude(32), 2);
-        assert_eq!(get_order_of_magnitude(10_000), 5);
-        assert_eq!(get_order_of_magnitude(10_001), 5);
-        assert_eq!(get_order_of_magnitude(37_871), 5);
+        let mut buf = Vec::new();
+        num.to_digits(&mut buf);
+        assert_eq!(vec![3, 7, 8, 7, 1], buf);
     }
 }
